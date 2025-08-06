@@ -115,9 +115,9 @@ const Settings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/20 via-background to-accent/20">
+    <div className="min-h-screen">
       {/* Header */}
-      <header className="bg-card/80 backdrop-blur-sm border-b sticky top-0 z-50">
+      <header className="bg-card/80 backdrop-blur-sm border-b sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>

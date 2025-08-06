@@ -122,19 +122,21 @@ const Chat = () => {
   };
 
   const generateAIResponse = async (userMessage: string): Promise<string> => {
-    // This is a mock AI response. In production, this would call the Google AI API
-    const responses = [
-      "Ótima pergunta! Para ajudar você melhor, preciso saber mais sobre seus objetivos. Você está focando em emagrecimento, ganho de massa ou manutenção da saúde?",
-      "Entendo sua dúvida. Com base no seu perfil, recomendo focar em exercícios funcionais e uma alimentação balanceada. Que tal começarmos com 30 minutos de atividade física 3x por semana?",
-      "Excelente! Vejo que você está comprometido com seus objetivos. Lembre-se de manter a hidratação em dia - pelo menos 2 litros de água por dia. Como está sua rotina de sono?",
-      "Sobre sua alimentação, é importante manter um déficit calórico moderado se o objetivo é emagrecimento. Que tal incluir mais proteínas magras e vegetais em suas refeições?",
-      "Ótimo progresso! Continue assim. Para otimizar seus resultados, recomendo variar os exercícios a cada 4-6 semanas para desafiar diferentes grupos musculares."
-    ];
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-    
-    return responses[Math.floor(Math.random() * responses.length)];
+    try {
+      const { data, error } = await supabase.functions.invoke('chat-with-ai', {
+        body: { message: userMessage }
+      });
+
+      if (error) {
+        console.error('Error calling AI function:', error);
+        return 'Desculpe, estou com dificuldades técnicas. Tente novamente em alguns instantes! 😊';
+      }
+
+      return data.response || 'Não consegui processar sua mensagem. Tente reformular sua pergunta! 💪';
+    } catch (error) {
+      console.error('Error calling AI:', error);
+      return 'Ops! Algo deu errado. Tente novamente! 🙂';
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -160,7 +162,7 @@ const Chat = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/20 via-background to-accent/20 flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* Header */}
       <header className="bg-card/80 backdrop-blur-sm border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -175,8 +177,8 @@ const Chat = () => {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h1 className="text-lg font-semibold">IA Meu Ritmo</h1>
-                <p className="text-sm text-muted-foreground">Assistente de Saúde e Bem-estar</p>
+                <h1 className="text-lg font-semibold">Mari - IA Meu Ritmo</h1>
+                <p className="text-sm text-muted-foreground">Sua Assistente de Saúde e Bem-estar</p>
               </div>
             </div>
           </div>
