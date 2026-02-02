@@ -14,7 +14,10 @@ interface Message {
   content: string;
   image_urls?: string[];
   created_at: string;
+  isStreaming?: boolean;
 }
+
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-with-ai`;
 
 const Chat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -22,6 +25,7 @@ const Chat = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -31,6 +35,13 @@ const Chat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Reset textarea height when message is sent
+  useEffect(() => {
+    if (!loading && textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+  }, [loading]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -71,64 +82,142 @@ const Chat = () => {
     setNewMessage("");
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Usuário não autenticado");
 
-      // Save user message
-      const { data: userMessage, error: userError } = await supabase
-        .from("chat_messages")
-        .insert({
-          user_id: user.id,
-          message_type: 'user',
-          content: userMessageContent
-        })
-        .select()
-        .single();
+      // Add user message optimistically with temp ID
+      const tempUserMessage: Message = {
+        id: `temp-user-${Date.now()}`,
+        message_type: 'user',
+        content: userMessageContent,
+        created_at: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, tempUserMessage]);
 
-      if (userError) throw userError;
+      // Add placeholder for AI response
+      const tempAiId = `temp-ai-${Date.now()}`;
+      const tempAiMessage: Message = {
+        id: tempAiId,
+        message_type: 'ai',
+        content: '',
+        created_at: new Date().toISOString(),
+        isStreaming: true,
+      };
+      setMessages(prev => [...prev, tempAiMessage]);
 
-      setMessages(prev => [...prev, userMessage as Message]);
+      // Call streaming endpoint
+      const response = await fetch(CHAT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ 
+          message: userMessageContent,
+          stream: true 
+        }),
+      });
 
-      // Simulate AI response (replace with actual AI integration)
-      const aiResponse = await generateAIResponse(userMessageContent);
-      
-      const { data: aiMessage, error: aiError } = await supabase
-        .from("chat_messages")
-        .insert({
-          user_id: user.id,
-          message_type: 'ai',
-          content: aiResponse
-        })
-        .select()
-        .single();
+      if (!response.ok) {
+        if (response.status === 429) {
+          toast.error("Muitas requisições. Aguarde um momento.");
+        } else if (response.status === 402) {
+          toast.error("Créditos insuficientes.");
+        } else {
+          toast.error("Erro ao enviar mensagem");
+        }
+        // Remove temp messages on error
+        setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
+        setLoading(false);
+        return;
+      }
 
-      if (aiError) throw aiError;
+      if (!response.body) throw new Error("No response body");
 
-      setMessages(prev => [...prev, aiMessage as Message]);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantContent = "";
+      let textBuffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        textBuffer += decoder.decode(value, { stream: true });
+
+        // Process line-by-line
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") break;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              assistantContent += content;
+              // Update the streaming message
+              setMessages(prev => 
+                prev.map(m => 
+                  m.id === tempAiId 
+                    ? { ...m, content: assistantContent }
+                    : m
+                )
+              );
+            }
+          } catch {
+            // Incomplete JSON, put it back and wait for more
+            textBuffer = line + "\n" + textBuffer;
+            break;
+          }
+        }
+      }
+
+      // Final flush
+      if (textBuffer.trim()) {
+        for (let raw of textBuffer.split("\n")) {
+          if (!raw) continue;
+          if (raw.endsWith("\r")) raw = raw.slice(0, -1);
+          if (raw.startsWith(":") || raw.trim() === "") continue;
+          if (!raw.startsWith("data: ")) continue;
+          const jsonStr = raw.slice(6).trim();
+          if (jsonStr === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              assistantContent += content;
+            }
+          } catch { /* ignore */ }
+        }
+      }
+
+      // Mark streaming as complete
+      setMessages(prev => 
+        prev.map(m => 
+          m.id === tempAiId 
+            ? { ...m, content: assistantContent, isStreaming: false }
+            : m
+        )
+      );
+
+      // Refresh messages from DB to get real IDs
+      setTimeout(() => fetchMessages(), 500);
 
     } catch (error) {
       console.error("Error sending message:", error);
       toast.error("Erro ao enviar mensagem");
+      // Remove temp messages on error
+      setMessages(prev => prev.filter(m => !m.id.startsWith('temp-')));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const generateAIResponse = async (userMessage: string): Promise<string> => {
-    try {
-      const { data, error } = await supabase.functions.invoke('chat-with-ai', {
-        body: { message: userMessage }
-      });
-
-      if (error) {
-        console.error('Error calling AI function:', error);
-        return 'Desculpe, estou com dificuldades técnicas. Tente novamente em alguns instantes! 😊';
-      }
-
-      return data.response || 'Não consegui processar sua mensagem. Tente reformular sua pergunta! 💪';
-    } catch (error) {
-      console.error('Error calling AI:', error);
-      return 'Ops! Algo deu errado. Tente novamente! 🙂';
     }
   };
 
@@ -137,6 +226,16 @@ const Chat = () => {
       e.preventDefault();
       sendMessage();
     }
+  };
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNewMessage(e.target.value);
+    // Auto-resize: reset then expand
+    const textarea = e.target;
+    textarea.style.height = 'auto';
+    // Calculate max height based on viewport (responsive)
+    const maxHeight = Math.min(window.innerHeight * 0.2, 120); // 20% of viewport or 120px max
+    textarea.style.height = Math.min(textarea.scrollHeight, maxHeight) + 'px';
   };
 
   const formatTime = (timestamp: string) => {
@@ -179,7 +278,7 @@ const Chat = () => {
       </header>
 
       {/* Messages Area */}
-      <div className="flex-1 container mx-auto px-4 py-6 max-w-4xl">
+      <div className="flex-1 container mx-auto px-4 py-6 max-w-4xl overflow-y-auto">
         <div className="space-y-4 mb-4">
           {messages.length === 0 && (
             <Card className="border-dashed">
@@ -234,7 +333,12 @@ const Chat = () => {
                     ? 'bg-primary text-primary-foreground ml-auto'
                     : 'bg-card border'
                 }`}>
-                  <p className="whitespace-pre-wrap">{message.content}</p>
+                  <p className="whitespace-pre-wrap">
+                    {message.content}
+                    {message.isStreaming && (
+                      <span className="inline-block w-2 h-4 bg-current animate-pulse ml-1" />
+                    )}
+                  </p>
                   {message.image_urls && message.image_urls.length > 0 && (
                     <div className="mt-2 grid grid-cols-2 gap-2">
                       {message.image_urls.map((url, index) => (
@@ -263,7 +367,7 @@ const Chat = () => {
             </div>
           ))}
           
-          {loading && (
+          {loading && messages[messages.length - 1]?.message_type !== 'ai' && (
             <div className="flex gap-3 justify-start">
               <Avatar>
                 <AvatarFallback className="bg-primary text-primary-foreground">
@@ -291,24 +395,20 @@ const Chat = () => {
         <div className="container mx-auto px-4 py-4 max-w-4xl">
           <div className="flex gap-2 items-end">
             <Textarea
+              ref={textareaRef}
               placeholder="Digite sua pergunta sobre saúde, nutrição ou exercícios..."
               value={newMessage}
-              onChange={(e) => {
-                setNewMessage(e.target.value);
-                // Auto-resize
-                e.target.style.height = 'auto';
-                e.target.style.height = Math.min(e.target.scrollHeight, 80) + 'px';
-              }}
+              onChange={handleTextareaChange}
               onKeyDown={handleKeyPress}
               disabled={loading}
-              className="flex-1 min-h-[40px] max-h-[80px] resize-none py-2"
+              className="flex-1 min-h-[44px] resize-none py-2.5 overflow-hidden"
               rows={1}
             />
             <Button 
               onClick={sendMessage} 
               disabled={loading || !newMessage.trim()}
               size="icon"
-              className="flex-shrink-0"
+              className="flex-shrink-0 h-[44px] w-[44px]"
             >
               <Send className="h-4 w-4" />
             </Button>
