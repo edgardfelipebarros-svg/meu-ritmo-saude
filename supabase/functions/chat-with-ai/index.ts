@@ -3,10 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
-
-const GEMINI_API_KEY = "AIzaSyBcEXTFW9YnSVIen1jNEdniDqDVw1X7yy8";
 
 const SYSTEM_PROMPT = `Você é um agente de IA chamado Mari especialista em saúde, nutrição, bem-estar e treinos físicos, e atua como consultora virtual dentro do sistema MeuRitmo, um aplicativo de treinos e alimentação saudável com ou sem acompanhamento profissional.
 
@@ -22,9 +20,7 @@ Instruções específicas para seu comportamento:
 * Não critique, julgue ou use linguagem negativa
 * Oriente o usuário sempre que necessário a procurar um profissional humano (ex: médico, nutricionista ou personal presencial)
 * Evite parecer um robô. Fale como um **amigo que entende de saúde** e quer ajudar
-* Se ele enviar foto de prato descreva cada item que consegue visualizar, faça uma suposição em gramas do total do prato e total de calorias, diga ainda que essas informações podem não ser precisas
-
-Sempre responda com atenção e foco no bem-estar do usuário. Sua missão é tornar o caminho mais leve, saudável e possível para todos.`;
+* Se ele enviar foto de prato descreva cada item que consegue visualizar, faça uma suposição em gramas do total do prato e total de calorias, diga ainda que essas informações podem não ser precisas`;
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -48,56 +44,68 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    // Prepare the request to Gemini
-    const requestBody: any = {
-      contents: [{
-        parts: [
-          { text: `${SYSTEM_PROMPT}\n\nUsuário: ${message}` }
-        ]
-      }],
-      generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 1024,
-      }
-    };
-
-    // Add image if provided
-    if (imageUrl) {
-      // Convert image URL to base64 for Gemini
-      const imageResponse = await fetch(imageUrl);
-      const imageBuffer = await imageResponse.arrayBuffer();
-      const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
-      
-      requestBody.contents[0].parts.push({
-        inline_data: {
-          mime_type: imageResponse.headers.get('content-type') || 'image/jpeg',
-          data: base64Image
-        }
-      });
+    // Get Lovable API Key
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Call Gemini API
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      }
-    );
+    // Prepare messages for Lovable AI Gateway
+    const messages: { role: string; content: string | object[] }[] = [
+      { role: "system", content: SYSTEM_PROMPT },
+    ];
+
+    // Build user message with optional image
+    if (imageUrl) {
+      messages.push({
+        role: "user",
+        content: [
+          { type: "text", text: message },
+          { type: "image_url", image_url: { url: imageUrl } }
+        ]
+      });
+    } else {
+      messages.push({ role: "user", content: message });
+    }
+
+    // Call Lovable AI Gateway
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages,
+        max_tokens: 1024,
+      }),
+    });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ 
+          error: "Muitas requisições. Aguarde um momento e tente novamente." 
+        }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ 
+          error: "Créditos insuficientes. Entre em contato com o suporte." 
+        }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const errorText = await response.text();
-      console.error('Gemini API error:', errorText);
-      throw new Error(`Gemini API error: ${response.status}`);
+      console.error("AI Gateway error:", response.status, errorText);
+      throw new Error(`AI Gateway error: ${response.status}`);
     }
 
     const data = await response.json();
-    const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 
+    const aiResponse = data.choices?.[0]?.message?.content || 
                       'Desculpe, não consegui processar sua mensagem. Tente novamente! 😊';
 
     // Save user message to database
