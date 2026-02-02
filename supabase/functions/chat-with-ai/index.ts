@@ -29,7 +29,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message, imageUrl } = await req.json();
+    const { message, imageUrl, stream = false } = await req.json();
 
     // Get user from auth header
     const authHeader = req.headers.get('Authorization')!;
@@ -68,6 +68,14 @@ serve(async (req) => {
       messages.push({ role: "user", content: message });
     }
 
+    // Save user message to database first
+    await supabaseClient.from('chat_messages').insert({
+      user_id: user.id,
+      message_type: 'user',
+      content: message,
+      image_urls: imageUrl ? [imageUrl] : null
+    });
+
     // Call Lovable AI Gateway
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -79,6 +87,7 @@ serve(async (req) => {
         model: "google/gemini-3-flash-preview",
         messages,
         max_tokens: 1024,
+        stream: stream,
       }),
     });
 
@@ -104,17 +113,69 @@ serve(async (req) => {
       throw new Error(`AI Gateway error: ${response.status}`);
     }
 
+    // If streaming, return the stream directly
+    if (stream) {
+      // Create a TransformStream to capture the full response for saving
+      const { readable, writable } = new TransformStream();
+      let fullResponse = "";
+
+      const writer = writable.getWriter();
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+
+      (async () => {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            await writer.write(value);
+
+            // Parse SSE to extract content for saving
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                try {
+                  const jsonStr = line.slice(6).trim();
+                  if (jsonStr && jsonStr !== '[DONE]') {
+                    const parsed = JSON.parse(jsonStr);
+                    const content = parsed.choices?.[0]?.delta?.content;
+                    if (content) {
+                      fullResponse += content;
+                    }
+                  }
+                } catch {
+                  // Ignore parse errors for partial chunks
+                }
+              }
+            }
+          }
+
+          // Save AI response after stream completes
+          if (fullResponse) {
+            await supabaseClient.from('chat_messages').insert({
+              user_id: user.id,
+              message_type: 'ai',
+              content: fullResponse
+            });
+          }
+        } catch (e) {
+          console.error("Stream processing error:", e);
+        } finally {
+          await writer.close();
+        }
+      })();
+
+      return new Response(readable, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+      });
+    }
+
+    // Non-streaming response
     const data = await response.json();
     const aiResponse = data.choices?.[0]?.message?.content || 
                       'Desculpe, não consegui processar sua mensagem. Tente novamente! 😊';
-
-    // Save user message to database
-    await supabaseClient.from('chat_messages').insert({
-      user_id: user.id,
-      message_type: 'user',
-      content: message,
-      image_urls: imageUrl ? [imageUrl] : null
-    });
 
     // Save AI response to database
     await supabaseClient.from('chat_messages').insert({
