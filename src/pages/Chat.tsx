@@ -1,17 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  Send, 
-  Image as ImageIcon, 
-  ArrowLeft, 
-  Bot, 
-  User,
-  Paperclip 
-} from "lucide-react";
+import { Send, ArrowLeft, Bot, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -296,27 +289,26 @@ const Chat = () => {
       {/* Input Area */}
       <div className="border-t bg-card/80 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4 max-w-4xl">
-          <div className="flex gap-2">
-            <Button variant="outline" size="icon" className="flex-shrink-0">
-              <Paperclip className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="icon" className="flex-shrink-0">
-              <ImageIcon className="h-4 w-4" />
-            </Button>
-            <div className="flex-1 relative">
-              <Input
-                placeholder="Digite sua pergunta sobre saúde, nutrição ou exercícios..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={loading}
-                className="pr-12"
-              />
-            </div>
+          <div className="flex gap-2 items-end">
+            <Textarea
+              placeholder="Digite sua pergunta sobre saúde, nutrição ou exercícios..."
+              value={newMessage}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                // Auto-resize
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 80) + 'px';
+              }}
+              onKeyDown={handleKeyPress}
+              disabled={loading}
+              className="flex-1 min-h-[40px] max-h-[80px] resize-none py-2"
+              rows={1}
+            />
             <Button 
               onClick={sendMessage} 
               disabled={loading || !newMessage.trim()}
               size="icon"
+              className="flex-shrink-0"
             >
               <Send className="h-4 w-4" />
             </Button>
