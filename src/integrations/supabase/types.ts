@@ -7,17 +7,15 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
       achievements: {
         Row: {
-          achievement_type: string
-          created_at: string
           description: string | null
           icon_name: string | null
           id: string
@@ -27,8 +25,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          achievement_type: string
-          created_at?: string
           description?: string | null
           icon_name?: string | null
           id?: string
@@ -38,8 +34,6 @@ export type Database = {
           user_id: string
         }
         Update: {
-          achievement_type?: string
-          created_at?: string
           description?: string | null
           icon_name?: string | null
           id?: string
@@ -50,10 +44,96 @@ export type Database = {
         }
         Relationships: []
       }
+      badges: {
+        Row: {
+          description: string | null
+          icon_name: string | null
+          id: string
+          name: string
+          points: number | null
+          requirement_type: string
+          requirement_value: number
+        }
+        Insert: {
+          description?: string | null
+          icon_name?: string | null
+          id?: string
+          name: string
+          points?: number | null
+          requirement_type: string
+          requirement_value: number
+        }
+        Update: {
+          description?: string | null
+          icon_name?: string | null
+          id?: string
+          name?: string
+          points?: number | null
+          requirement_type?: string
+          requirement_value?: number
+        }
+        Relationships: []
+      }
+      calendar_events: {
+        Row: {
+          created_at: string
+          description: string | null
+          event_date: string
+          event_time: string | null
+          event_type: string
+          exercise_id: string | null
+          id: string
+          is_completed: boolean | null
+          recipe_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          event_date: string
+          event_time?: string | null
+          event_type: string
+          exercise_id?: string | null
+          id?: string
+          is_completed?: boolean | null
+          recipe_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          event_date?: string
+          event_time?: string | null
+          event_type?: string
+          exercise_id?: string | null
+          id?: string
+          is_completed?: boolean | null
+          recipe_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           content: string
-          context_data: Json | null
           created_at: string
           id: string
           image_urls: string[] | null
@@ -62,7 +142,6 @@ export type Database = {
         }
         Insert: {
           content: string
-          context_data?: Json | null
           created_at?: string
           id?: string
           image_urls?: string[] | null
@@ -71,7 +150,6 @@ export type Database = {
         }
         Update: {
           content?: string
-          context_data?: Json | null
           created_at?: string
           id?: string
           image_urls?: string[] | null
@@ -87,13 +165,13 @@ export type Database = {
           contraindications: string | null
           created_at: string
           description: string | null
-          difficulty_level: string
+          difficulty_level: string | null
           duration: number | null
           equipment_needed: string[] | null
           id: string
           image_urls: string[] | null
           instructions: string | null
-          module_type: string
+          module_type: string | null
           muscle_groups: string[] | null
           observations: string | null
           title: string
@@ -106,13 +184,13 @@ export type Database = {
           contraindications?: string | null
           created_at?: string
           description?: string | null
-          difficulty_level: string
+          difficulty_level?: string | null
           duration?: number | null
           equipment_needed?: string[] | null
           id?: string
           image_urls?: string[] | null
           instructions?: string | null
-          module_type: string
+          module_type?: string | null
           muscle_groups?: string[] | null
           observations?: string | null
           title: string
@@ -125,13 +203,13 @@ export type Database = {
           contraindications?: string | null
           created_at?: string
           description?: string | null
-          difficulty_level?: string
+          difficulty_level?: string | null
           duration?: number | null
           equipment_needed?: string[] | null
           id?: string
           image_urls?: string[] | null
           instructions?: string | null
-          module_type?: string
+          module_type?: string | null
           muscle_groups?: string[] | null
           observations?: string | null
           title?: string
@@ -139,56 +217,6 @@ export type Database = {
           youtube_url?: string | null
         }
         Relationships: []
-      }
-      meal_plans: {
-        Row: {
-          calories: number | null
-          completed: boolean | null
-          created_at: string
-          custom_meal: string | null
-          date: string
-          id: string
-          meal_type: string
-          notes: string | null
-          recipe_id: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          calories?: number | null
-          completed?: boolean | null
-          created_at?: string
-          custom_meal?: string | null
-          date: string
-          id?: string
-          meal_type: string
-          notes?: string | null
-          recipe_id?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          calories?: number | null
-          completed?: boolean | null
-          created_at?: string
-          custom_meal?: string | null
-          date?: string
-          id?: string
-          meal_type?: string
-          notes?: string | null
-          recipe_id?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "meal_plans_recipe_id_fkey"
-            columns: ["recipe_id"]
-            isOneToOne: false
-            referencedRelation: "recipes"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       profiles: {
         Row: {
@@ -232,48 +260,6 @@ export type Database = {
           goal?: string | null
           height?: number | null
           id?: string
-          updated_at?: string
-          user_id?: string
-          weight?: number | null
-        }
-        Relationships: []
-      }
-      progress: {
-        Row: {
-          body_fat_percentage: number | null
-          created_at: string
-          id: string
-          measurement_date: string
-          measurements: Json | null
-          muscle_mass: number | null
-          notes: string | null
-          photos: string[] | null
-          updated_at: string
-          user_id: string
-          weight: number | null
-        }
-        Insert: {
-          body_fat_percentage?: number | null
-          created_at?: string
-          id?: string
-          measurement_date: string
-          measurements?: Json | null
-          muscle_mass?: number | null
-          notes?: string | null
-          photos?: string[] | null
-          updated_at?: string
-          user_id: string
-          weight?: number | null
-        }
-        Update: {
-          body_fat_percentage?: number | null
-          created_at?: string
-          id?: string
-          measurement_date?: string
-          measurements?: Json | null
-          muscle_mass?: number | null
-          notes?: string | null
-          photos?: string[] | null
           updated_at?: string
           user_id?: string
           weight?: number | null
@@ -337,15 +323,43 @@ export type Database = {
         }
         Relationships: []
       }
+      shopping_list: {
+        Row: {
+          created_at: string
+          id: string
+          ingredient: string
+          is_checked: boolean | null
+          quantity: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ingredient: string
+          is_checked?: boolean | null
+          quantity?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ingredient?: string
+          is_checked?: boolean | null
+          quantity?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscribers: {
         Row: {
           created_at: string
           email: string
           id: string
           stripe_customer_id: string | null
-          subscribed: boolean
-          subscription_end: string | null
-          subscription_tier: string | null
+          subscription_end_date: string | null
+          subscription_plan: string | null
+          subscription_start_date: string | null
+          subscription_status: string | null
           updated_at: string
           user_id: string
         }
@@ -354,9 +368,10 @@ export type Database = {
           email: string
           id?: string
           stripe_customer_id?: string | null
-          subscribed?: boolean
-          subscription_end?: string | null
-          subscription_tier?: string | null
+          subscription_end_date?: string | null
+          subscription_plan?: string | null
+          subscription_start_date?: string | null
+          subscription_status?: string | null
           updated_at?: string
           user_id: string
         }
@@ -365,102 +380,75 @@ export type Database = {
           email?: string
           id?: string
           stripe_customer_id?: string | null
-          subscribed?: boolean
-          subscription_end?: string | null
-          subscription_tier?: string | null
+          subscription_end_date?: string | null
+          subscription_plan?: string | null
+          subscription_start_date?: string | null
+          subscription_status?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: []
       }
-      user_goals: {
+      user_badges: {
         Row: {
-          completed: boolean | null
-          completed_at: string | null
-          created_at: string
-          current_value: number | null
-          goal_type: string
+          badge_id: string
           id: string
-          target_value: number | null
-          updated_at: string
-          user_id: string
-          week_start: string
-        }
-        Insert: {
-          completed?: boolean | null
-          completed_at?: string | null
-          created_at?: string
-          current_value?: number | null
-          goal_type: string
-          id?: string
-          target_value?: number | null
-          updated_at?: string
-          user_id: string
-          week_start: string
-        }
-        Update: {
-          completed?: boolean | null
-          completed_at?: string | null
-          created_at?: string
-          current_value?: number | null
-          goal_type?: string
-          id?: string
-          target_value?: number | null
-          updated_at?: string
-          user_id?: string
-          week_start?: string
-        }
-        Relationships: []
-      }
-      workouts: {
-        Row: {
-          calories_burned: number | null
-          completed_date: string | null
-          created_at: string
-          difficulty_rating: number | null
-          duration_minutes: number | null
-          exercise_id: string | null
-          id: string
-          notes: string | null
-          reps_completed: number | null
-          scheduled_date: string | null
-          sets_completed: number | null
-          updated_at: string
+          unlocked_at: string
           user_id: string
         }
         Insert: {
-          calories_burned?: number | null
-          completed_date?: string | null
-          created_at?: string
-          difficulty_rating?: number | null
-          duration_minutes?: number | null
-          exercise_id?: string | null
+          badge_id: string
           id?: string
-          notes?: string | null
-          reps_completed?: number | null
-          scheduled_date?: string | null
-          sets_completed?: number | null
-          updated_at?: string
+          unlocked_at?: string
           user_id: string
         }
         Update: {
-          calories_burned?: number | null
-          completed_date?: string | null
-          created_at?: string
-          difficulty_rating?: number | null
-          duration_minutes?: number | null
-          exercise_id?: string | null
+          badge_id?: string
           id?: string
-          notes?: string | null
-          reps_completed?: number | null
-          scheduled_date?: string | null
-          sets_completed?: number | null
-          updated_at?: string
+          unlocked_at?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "workouts_exercise_id_fkey"
+            foreignKeyName: "user_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_exercises: {
+        Row: {
+          calories_burned: number | null
+          completed_at: string
+          duration: number | null
+          exercise_id: string
+          id: string
+          notes: string | null
+          user_id: string
+        }
+        Insert: {
+          calories_burned?: number | null
+          completed_at?: string
+          duration?: number | null
+          exercise_id: string
+          id?: string
+          notes?: string | null
+          user_id: string
+        }
+        Update: {
+          calories_burned?: number | null
+          completed_at?: string
+          duration?: number | null
+          exercise_id?: string
+          id?: string
+          notes?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_exercises_exercise_id_fkey"
             columns: ["exercise_id"]
             isOneToOne: false
             referencedRelation: "exercises"
@@ -468,15 +456,239 @@ export type Database = {
           },
         ]
       }
+      user_goals: {
+        Row: {
+          completed: boolean | null
+          created_at: string
+          current_value: number | null
+          goal_type: string
+          id: string
+          target_value: number
+          updated_at: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string
+          current_value?: number | null
+          goal_type: string
+          id?: string
+          target_value: number
+          updated_at?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string
+          current_value?: number | null
+          goal_type?: string
+          id?: string
+          target_value?: number
+          updated_at?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
+      user_missions: {
+        Row: {
+          created_at: string
+          current_value: number | null
+          id: string
+          is_completed: boolean | null
+          mission_id: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          is_completed?: boolean | null
+          mission_id: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          is_completed?: boolean | null
+          mission_id?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_missions_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_missions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_points: {
+        Row: {
+          created_at: string
+          current_level: number | null
+          id: string
+          last_activity_date: string | null
+          streak_days: number | null
+          total_points: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_level?: number | null
+          id?: string
+          last_activity_date?: string | null
+          streak_days?: number | null
+          total_points?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_level?: number | null
+          id?: string
+          last_activity_date?: string | null
+          streak_days?: number | null
+          total_points?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_recipes: {
+        Row: {
+          created_at: string
+          id: string
+          in_shopping_list: boolean | null
+          is_favorite: boolean | null
+          recipe_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          in_shopping_list?: boolean | null
+          is_favorite?: boolean | null
+          recipe_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          in_shopping_list?: boolean | null
+          is_favorite?: boolean | null
+          recipe_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_recipes_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_weight_history: {
+        Row: {
+          id: string
+          recorded_at: string
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          id?: string
+          recorded_at?: string
+          user_id: string
+          weight: number
+        }
+        Update: {
+          id?: string
+          recorded_at?: string
+          user_id?: string
+          weight?: number
+        }
+        Relationships: []
+      }
+      weekly_missions: {
+        Row: {
+          description: string | null
+          id: string
+          is_active: boolean | null
+          mission_type: string
+          points_reward: number | null
+          target_value: number
+          title: string
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          mission_type: string
+          points_reward?: number | null
+          target_value: number
+          title: string
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          mission_type?: string
+          points_reward?: number | null
+          target_value?: number
+          title?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -603,6 +815,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
