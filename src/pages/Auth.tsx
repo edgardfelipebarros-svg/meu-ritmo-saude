@@ -144,11 +144,11 @@ const Auth = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="signin">Entrar</TabsTrigger>
               <TabsTrigger value="signup">Cadastrar</TabsTrigger>
             </TabsList>
-            <TabsContent value="signin" className="space-y-4">
+            <TabsContent value="signin" className="space-y-4 mt-4">
               {/* Google Button First */}
               <Button
                 type="button"
@@ -194,7 +194,7 @@ const Auth = () => {
                 <Button type="button" variant="link" className="w-full text-sm" onClick={() => setShowForgotPassword(true)}>Esqueci minha senha</Button>
               </form>
             </TabsContent>
-            <TabsContent value="signup" className="space-y-4">
+            <TabsContent value="signup" className="space-y-4 mt-4">
               {/* Google Button First */}
               <Button
                 type="button"
